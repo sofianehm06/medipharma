@@ -64,10 +64,7 @@ jobs:
         run: npm ci
 
       - name: Initialiser la base de données de test
-        run: |
-          mysql -h 127.0.0.1 -u root -ptestpassword < ../database/schema.sql
-          mysql -h 127.0.0.1 -u root -ptestpassword \
-            -e "GRANT ALL ON medipharma.* TO 'testuser'@'%'; FLUSH PRIVILEGES;"
+        run: mysql -h 127.0.0.1 -u root -ptestpassword < ../database/schema.sql
 
       - name: Lancer les tests Jest
         run: npm test -- --watchAll=false --forceExit
@@ -75,8 +72,8 @@ jobs:
           NODE_ENV:       test
           DB_HOST:        127.0.0.1
           DB_PORT:        3306
-          DB_USER:        testuser
-          DB_PASSWORD:    testpass
+          DB_USER:        root
+          DB_PASSWORD:    testpassword
           DB_NAME:        medipharma
           JWT_SECRET:     test_jwt_secret_ci_2026
           GEMINI_API_KEY: ""
