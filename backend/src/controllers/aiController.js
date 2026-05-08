@@ -4,7 +4,7 @@ const db = require('../config/db');
 const getModel = () => {
   if (!process.env.GEMINI_API_KEY) throw new Error('GEMINI_API_KEY non configurée');
   const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-  return genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+  return genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
 };
 
 // Analyse IA du stock et recommandations
@@ -58,6 +58,9 @@ Réponds en français, de manière concise et professionnelle.`;
     if (err.message.includes('API_KEY') || err.message.includes('non configurée')) {
       return res.status(503).json({ error: 'Clé Gemini invalide ou non configurée' });
     }
+    if (err.status === 429) {
+      return res.status(429).json({ error: 'Quota IA dépassé, réessayez dans 30 secondes.' });
+    }
     res.status(500).json({ error: "Erreur lors de l'analyse IA" });
   }
 };
@@ -94,6 +97,9 @@ Question du personnel : ${message}`;
   } catch (err) {
     if (err.message.includes('API_KEY') || err.message.includes('non configurée')) {
       return res.status(503).json({ error: 'Service IA non disponible' });
+    }
+    if (err.status === 429) {
+      return res.status(429).json({ error: 'Quota IA dépassé, réessayez dans 30 secondes.' });
     }
     res.status(500).json({ error: "Erreur lors de la communication avec l'IA" });
   }
