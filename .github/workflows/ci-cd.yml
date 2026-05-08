@@ -228,14 +228,39 @@ jobs:
     if: github.ref == 'refs/heads/develop'
     environment:
       name: staging
-      url: http://staging.medipharma.dz
+      url: http://${{ secrets.STAGING_HOST }}
 
     steps:
-      - name: Deploy vers le serveur staging
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Installer la clé SSH
         run: |
-          echo "Déploiement automatique vers staging..."
-          # Exemple avec SSH :
-          # ssh user@staging.server "cd /app && docker compose pull && docker compose up -d"
+          mkdir -p ~/.ssh
+          echo "${{ secrets.STAGING_SSH_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ secrets.STAGING_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Copier docker-compose vers le serveur
+        run: |
+          scp docker-compose.yml ${{ secrets.STAGING_USER }}@${{ secrets.STAGING_HOST }}:/opt/medipharma/
+
+      - name: Déployer sur le serveur staging
+        run: |
+          ssh ${{ secrets.STAGING_USER }}@${{ secrets.STAGING_HOST }} << 'EOF'
+            cd /opt/medipharma
+            export CR_PAT=${{ secrets.GITHUB_TOKEN }}
+            echo $CR_PAT | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+            docker compose pull
+            docker compose up -d --remove-orphans
+            docker image prune -f
+          EOF
+
+      - name: Vérifier le déploiement
+        run: |
+          sleep 10
+          curl -f http://${{ secrets.STAGING_HOST }}:5000/api/health || exit 1
+          echo "Staging opérationnel ✓"
 
   # ── 6. Deploy Production (tag v*) ─────────────────────────
   deploy-prod:
@@ -245,10 +270,36 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/v')
     environment:
       name: production
-      url: http://medipharma.dz
+      url: http://${{ secrets.PROD_HOST }}
 
     steps:
-      - name: Deploy vers le serveur de production
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Installer la clé SSH
         run: |
-          echo "Déploiement de la version ${{ github.ref_name }} en production..."
-          # ssh user@prod.server "cd /app && docker compose pull && docker compose up -d"
+          mkdir -p ~/.ssh
+          echo "${{ secrets.PROD_SSH_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ secrets.PROD_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Copier docker-compose vers le serveur
+        run: |
+          scp docker-compose.yml ${{ secrets.PROD_USER }}@${{ secrets.PROD_HOST }}:/opt/medipharma/
+
+      - name: Déployer en production
+        run: |
+          ssh ${{ secrets.PROD_USER }}@${{ secrets.PROD_HOST }} << 'EOF'
+            cd /opt/medipharma
+            export CR_PAT=${{ secrets.GITHUB_TOKEN }}
+            echo $CR_PAT | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+            docker compose pull
+            docker compose up -d --remove-orphans
+            docker image prune -f
+          EOF
+
+      - name: Vérifier le déploiement production
+        run: |
+          sleep 15
+          curl -f http://${{ secrets.PROD_HOST }}:5000/api/health || exit 1
+          echo "Production v${{ github.ref_name }} déployée ✓"
