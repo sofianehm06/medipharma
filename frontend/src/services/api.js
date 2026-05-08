@@ -1,4 +1,5 @@
 import axios from 'axios';
+import toast from 'react-hot-toast';
 
 const api = axios.create({
   baseURL: process.env.REACT_APP_API_URL || 'http://localhost:5000/api',
@@ -12,13 +13,19 @@ api.interceptors.request.use(cfg => {
   return cfg;
 });
 
-// Rediriger vers /login si 401
+// Gestion globale des erreurs
 api.interceptors.response.use(
   r => r,
   err => {
-    if (err.response?.status === 401) {
+    const status = err.response?.status;
+    if (status === 401) {
       localStorage.removeItem('token');
       window.location.href = '/login';
+    } else if (status === 429) {
+      toast.error('Trop de requêtes. Veuillez patienter quelques instants.', {
+        id: 'rate-limit',
+        duration: 4000,
+      });
     }
     return Promise.reject(err);
   }

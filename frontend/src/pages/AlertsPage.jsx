@@ -9,7 +9,7 @@ export default function AlertsPage() {
   const load = () => {
     setLoading(true);
     alertService.getAll({ statut: filter || undefined })
-      .then(setAlerts).finally(() => setLoading(false));
+      .then(setAlerts).catch(() => {}).finally(() => setLoading(false));
   };
 
   useEffect(() => { load(); }, [filter]);

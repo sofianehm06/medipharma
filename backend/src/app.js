@@ -34,7 +34,7 @@ app.use(morgan('combined'));
 // Rate limiting global
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 100,
+  max: 1000,
   message: { error: 'Trop de requêtes, réessayez dans 15 minutes.' }
 });
 app.use('/api/', limiter);

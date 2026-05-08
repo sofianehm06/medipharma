@@ -31,7 +31,7 @@ export default function StockPage() {
       medicationService.getAll()
     ]).then(([e, l, m, mds]) => {
       setEtat(e); setLots(l); setMouv(m); setMeds(mds);
-    }).finally(() => setLoading(false));
+    }).catch(() => {}).finally(() => setLoading(false));
   };
 
   useEffect(() => { loadAll(); }, []);

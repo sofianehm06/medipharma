@@ -20,7 +20,7 @@ export default function MedicationsPage() {
   const load = () => {
     setLoading(true);
     medicationService.getAll({ search, forme: formeFilter })
-      .then(setMeds).finally(() => setLoading(false));
+      .then(setMeds).catch(() => {}).finally(() => setLoading(false));
   };
 
   useEffect(() => { load(); }, [search, formeFilter]);

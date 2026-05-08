@@ -16,7 +16,7 @@ export default function UsersPage() {
 
   const load = () => {
     setLoading(true);
-    userService.getAll().then(setUsers).finally(() => setLoading(false));
+    userService.getAll().then(setUsers).catch(() => {}).finally(() => setLoading(false));
   };
 
   useEffect(() => { load(); }, []);

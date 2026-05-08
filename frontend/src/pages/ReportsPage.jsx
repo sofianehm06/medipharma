@@ -17,9 +17,9 @@ export default function ReportsPage() {
 
   useEffect(() => {
     setLoading(true);
-    if (tab === 0) reportService.inventaire().then(setInv).finally(() => setLoading(false));
-    if (tab === 1) reportService.consommation({ debut: dateDebut, fin: dateFin }).then(setConsomm).finally(() => setLoading(false));
-    if (tab === 2) reportService.perimes().then(setPerimes).finally(() => setLoading(false));
+    if (tab === 0) reportService.inventaire().then(setInv).catch(() => {}).finally(() => setLoading(false));
+    if (tab === 1) reportService.consommation({ debut: dateDebut, fin: dateFin }).then(setConsomm).catch(() => {}).finally(() => setLoading(false));
+    if (tab === 2) reportService.perimes().then(setPerimes).catch(() => {}).finally(() => setLoading(false));
   }, [tab, dateDebut, dateFin]);
 
   const statutBadge = s => ({
