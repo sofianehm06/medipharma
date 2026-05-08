@@ -72,8 +72,8 @@ describe('RBAC — Contrôle d\'accès par rôle', () => {
         .post('/api/ai/chat')
         .set('Authorization', `Bearer ${tokens.medical}`)
         .send({ message: 'Bonjour' });
-      // 200 (avec clé) ou 503 (sans clé) — mais PAS 403
-      expect([200, 503]).toContain(res.status);
+      // 200 (OK), 503 (sans clé), 429 (quota dépassé) — mais PAS 403
+      expect([200, 503, 429]).toContain(res.status);
     });
     it('personnel médical ne peut pas accéder à l\'analyse stock', async () => {
       const res = await request(app).get('/api/ai/analyse-stock').set('Authorization', `Bearer ${tokens.medical}`);
