@@ -5,7 +5,7 @@ WORKDIR /app
 
 # Dépendances
 COPY package*.json ./
-RUN npm ci && npm cache clean --force
+RUN npm install --legacy-peer-deps && npm cache clean --force
 
 # Code source
 COPY public/ ./public/
