@@ -66,9 +66,13 @@ app.use((err, req, res, next) => {
   });
 });
 
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-  console.log(`Serveur démarré sur le port ${PORT} en mode ${process.env.NODE_ENV}`);
-});
+// Démarrer le serveur seulement si ce fichier est exécuté directement
+// (pas importé par les tests Jest)
+if (require.main === module) {
+  const PORT = process.env.PORT || 5000;
+  app.listen(PORT, () => {
+    console.log(`Serveur démarré sur le port ${PORT} en mode ${process.env.NODE_ENV}`);
+  });
+}
 
 module.exports = app;
