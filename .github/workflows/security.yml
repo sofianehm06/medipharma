@@ -154,9 +154,12 @@ jobs:
           MYSQL_DATABASE:      medipharma_test
           MYSQL_USER:          testuser
           MYSQL_PASSWORD:      testpass
+        ports:
+          - 3306:3306
         options: >-
           --health-cmd="mysqladmin ping -h localhost"
           --health-interval=10s
+          --health-timeout=5s
           --health-retries=10
 
     steps:
@@ -192,8 +195,8 @@ jobs:
           DB_USER:     testuser
           DB_PASSWORD: testpass
           DB_NAME:     medipharma_test
-          JWT_SECRET:  test_jwt_secret_dast_scan_2026
-          OPENAI_API_KEY: ""
+          JWT_SECRET:   test_jwt_secret_dast_scan_2026
+          GEMINI_API_KEY: ""
 
       - name: OWASP ZAP — Baseline Scan (API)
         uses: zaproxy/action-baseline@v0.15.0
