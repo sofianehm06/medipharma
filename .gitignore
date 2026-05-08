@@ -29,3 +29,8 @@ mysql_data/
 
 # Coverage tests
 coverage/
+
+# Fichiers générés localement
+rapport_soutenance.html
+generate_rapport.js
+.claude/
