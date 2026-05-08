@@ -68,6 +68,11 @@ export default function LoginPage() {
           </button>
         </form>
 
+        <div style={{ marginTop: 20, padding: 12, background: '#f8fafc', borderRadius: 8, fontSize: 12, color: '#64748b' }}>
+          <strong>Comptes de test :</strong><br />
+          admin@medipharma.dz | pharmacien@medipharma.dz<br />
+          <em>Mot de passe : password</em>
+        </div>
       </div>
     </div>
   );
