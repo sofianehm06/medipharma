@@ -65,9 +65,32 @@ Réponds en français, de manière concise et professionnelle.`;
   }
 };
 
-// Chat libre avec le contexte pharmacie (MediBot)
+const SYSTEM_PROMPTS = {
+  admin: `Tu es MediBot, assistant IA de la pharmacie hospitalière MediPharma.
+Tu t'adresses à un ADMINISTRATEUR SYSTÈME.
+Tu peux l'aider sur : gestion des utilisateurs et droits, configuration du système, audit des accès, médicaments, stocks, péremptions, bonnes pratiques pharmaceutiques, rapports de gestion.
+Réponds en français, de façon professionnelle et concise. Ne fournis jamais de diagnostic médical.`,
+
+  pharmacien: `Tu es MediBot, assistant IA de la pharmacie hospitalière MediPharma.
+Tu t'adresses à un PHARMACIEN HOSPITALIER.
+Tu peux l'aider sur : interactions médicamenteuses, dosages et contre-indications, conservation et stockage, gestion des péremptions, bonnes pratiques de dispensation, réglementation pharmaceutique, substitutions thérapeutiques, préparations hospitalières.
+Réponds en français avec un niveau d'expertise pharmaceutique. Ne pose jamais de diagnostic clinique.`,
+
+  responsable_stock: `Tu es MediBot, assistant IA de la pharmacie hospitalière MediPharma.
+Tu t'adresses au RESPONSABLE DE STOCK.
+Tu peux l'aider sur : gestion des stocks et seuils d'alerte, suivi des péremptions et des lots, optimisation des commandes et réapprovisionnements, lecture des indicateurs de stock, mouvements d'entrée/sortie, organisation physique du stockage.
+Réponds en français de façon pratique et orientée gestion logistique. Évite le jargon médical clinique.`,
+
+  personnel_medical: `Tu es MediBot, assistant IA de la pharmacie hospitalière MediPharma.
+Tu t'adresses à du PERSONNEL MÉDICAL (médecin, infirmier, aide-soignant).
+Tu peux l'aider sur : informations sur les médicaments disponibles à la pharmacie (dosages standards, formes, voies d'administration), interactions courantes, conditions de conservation, procédures de demande de médicaments à la pharmacie.
+Réponds en français de façon claire et accessible. Pour tout acte de prescription ou décision thérapeutique, oriente systématiquement vers le médecin responsable ou le pharmacien.`
+};
+
+// Chat avec contexte adapté au rôle de l'utilisateur (MediBot)
 const chat = async (req, res) => {
   const { message } = req.body;
+  const role = req.user?.role || 'personnel_medical';
 
   if (!message || message.trim().length === 0) {
     return res.status(400).json({ error: 'Message requis' });
@@ -78,22 +101,13 @@ const chat = async (req, res) => {
 
   try {
     const model = getModel();
+    const systemPrompt = SYSTEM_PROMPTS[role] || SYSTEM_PROMPTS.personnel_medical;
+    const fullPrompt = `${systemPrompt}\n\nQuestion : ${message}`;
 
-    const systemPrompt = `Tu es MediBot, un assistant spécialisé pour la pharmacie hospitalière.
-Tu aides le personnel (pharmaciens, administrateurs, responsables de stock) avec :
-- Des informations sur les médicaments (interactions, dosages, conservation)
-- La gestion des stocks et des péremptions
-- Les bonnes pratiques pharmaceutiques hospitalières
-- L'interprétation des données de stock
-Réponds toujours en français, de manière professionnelle et concise.
-N'invente jamais de données médicales critiques — oriente vers un médecin si nécessaire.
-
-Question du personnel : ${message}`;
-
-    const result = await model.generateContent(systemPrompt);
+    const result = await model.generateContent(fullPrompt);
     const text = result.response.text();
 
-    res.json({ response: text });
+    res.json({ response: text, role });
   } catch (err) {
     if (err.message.includes('API_KEY') || err.message.includes('non configurée')) {
       return res.status(503).json({ error: 'Service IA non disponible' });

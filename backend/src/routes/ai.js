@@ -4,7 +4,7 @@ const { verifyToken } = require('../middleware/auth');
 const { authorize } = require('../middleware/rbac');
 const rateLimit = require('express-rate-limit');
 
-// Limite les appels IA : 20 requêtes / heure (coût API OpenAI)
+// Limite les appels IA : 20 requêtes / heure (quota Gemini gratuit)
 const aiLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
   max: 20,
