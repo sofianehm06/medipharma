@@ -1,0 +1,191 @@
+# ============================================================
+#  MediPharma — Pipeline DevSecOps
+#  Référence : cours "Pipeline CI CD AIE 2026"
+#
+#  3 jobs de sécurité :
+#    1. sast-scan  → CodeQL  (analyse statique du code source)
+#    2. sca-scan   → Trivy   (audit des dépendances npm/CVE)
+#    3. dast-scan  → OWASP ZAP (attaque dynamique sur l'app live)
+# ============================================================
+
+name: DevSecOps — Security Pipeline
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: '0 2 * * *'   # Scan automatique chaque nuit à 2h UTC
+
+permissions:
+  contents:        read
+  security-events: write   # Requis pour CodeQL → onglet Security de GitHub
+  actions:         read
+
+jobs:
+
+  # ──────────────────────────────────────────────────────────
+  # 1. SAST — Static Application Security Testing
+  #    Outil : CodeQL (GitHub)
+  #    Analyse la boîte blanche : lit le code sans l'exécuter
+  #    Détecte : injections SQL, XSS, secrets codés en dur...
+  # ──────────────────────────────────────────────────────────
+  sast-scan:
+    name: SAST — CodeQL Analysis
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [javascript]   # Couvre Node.js (backend) ET React (frontend)
+
+    steps:
+      - name: Checkout du code
+        uses: actions/checkout@v4
+
+      - name: Initialiser CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+          queries: security-extended   # Règles étendues : injections, auth cassée, etc.
+
+      - name: AutoBuild (détection automatique du projet JS)
+        uses: github/codeql-action/autobuild@v3
+
+      - name: Exécuter l'analyse CodeQL
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:${{ matrix.language }}"
+          # Résultats visibles dans : GitHub → Security → Code scanning alerts
+
+  # ──────────────────────────────────────────────────────────
+  # 2. SCA — Software Composition Analysis
+  #    Outil : Trivy (Aqua Security)
+  #    Analyse les dépendances externes (npm)
+  #    Vérifie les CVE connues dans les bibliothèques utilisées
+  # ──────────────────────────────────────────────────────────
+  sca-scan:
+    name: SCA — Trivy Dependency Scan
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout du code
+        uses: actions/checkout@v4
+
+      - name: Trivy — Scan dépendances Backend (Node.js)
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type:  fs
+          scan-ref:   ./backend
+          format:     table       # Affiche un tableau lisible dans les logs
+          severity:   CRITICAL,HIGH
+          vuln-type:  library
+          exit-code:  0           # Ne bloque jamais le pipeline (informatif)
+
+      - name: Trivy — Scan dépendances Frontend (React)
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type:  fs
+          scan-ref:   ./frontend
+          format:     table
+          severity:   CRITICAL,HIGH
+          vuln-type:  library
+          exit-code:  0
+
+  # ──────────────────────────────────────────────────────────
+  # 3. DAST — Dynamic Application Security Testing
+  #    Outil : OWASP ZAP
+  #    Attaque l'application PENDANT qu'elle s'exécute
+  #    Détecte : mauvaises configurations, failles de logique...
+  #
+  #    Prérequis GitHub :
+  #    Settings → Secrets → Actions → ZAP_AUTH_TOKEN = token_etudiant_123
+  # ──────────────────────────────────────────────────────────
+  dast-scan:
+    name: DAST — OWASP ZAP Scan
+    runs-on: ubuntu-latest
+
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: testpassword
+          MYSQL_DATABASE:      medipharma_test
+          MYSQL_USER:          testuser
+          MYSQL_PASSWORD:      testpass
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+
+    steps:
+      - name: Checkout du code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Installer les dépendances backend
+        run: cd backend && npm ci
+
+      - name: Initialiser la base de données
+        run: |
+          mysql -h 127.0.0.1 -u root -ptestpassword < database/schema.sql
+          mysql -h 127.0.0.1 -u root -ptestpassword \
+            -e "GRANT ALL ON medipharma.* TO 'testuser'@'%'; FLUSH PRIVILEGES;"
+
+      - name: Démarrer le backend en arrière-plan
+        run: |
+          cd backend
+          nohup node src/app.js > /tmp/backend.log 2>&1 &
+          echo "Attente du démarrage du serveur..."
+          for i in {1..20}; do
+            curl -sf http://localhost:5000/api/health && echo "Serveur prêt !" && break
+            sleep 3
+          done
+        env:
+          NODE_ENV:       test
+          PORT:           5000
+          DB_HOST:        127.0.0.1
+          DB_PORT:        3306
+          DB_USER:        testuser
+          DB_PASSWORD:    testpass
+          DB_NAME:        medipharma
+          JWT_SECRET:     test_jwt_secret_dast_2026
+          GEMINI_API_KEY: ""
+
+      - name: Obtenir le token d'authentification
+        run: |
+          TOKEN=$(curl -s -X POST http://localhost:5000/api/auth/login \
+            -H "Content-Type: application/json" \
+            -d '{"email":"admin@medipharma.dz","password":"password"}' \
+            | grep -o '"token":"[^"]*"' | cut -d'"' -f4)
+          if [ -n "$TOKEN" ]; then
+            echo "ZAP_TOKEN=$TOKEN" >> $GITHUB_ENV
+            echo "Token obtenu avec succès"
+          else
+            echo "ZAP_TOKEN=${{ secrets.ZAP_AUTH_TOKEN }}" >> $GITHUB_ENV
+            echo "Utilisation du token secret GitHub"
+          fi
+
+      - name: OWASP ZAP — Baseline Scan (API)
+        uses: zaproxy/action-baseline@v0.14.0
+        continue-on-error: true   # ZAP peut trouver des alertes sans bloquer le pipeline
+        with:
+          target:            http://localhost:5000/api
+          rules_file_name:   .github/zap-rules.tsv
+          fail_action:       warn
+          artifact_name:     zap-report
+
+      - name: Upload rapport ZAP
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name:            zap-security-report
+          path:            report_html.html
+          retention-days:  30
