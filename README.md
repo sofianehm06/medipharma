@@ -26,11 +26,11 @@ MediPharma est une application web sécurisée permettant la **gestion et la tra
 
 | Couche | Technologie |
 |---|---|
-| **Frontend** | React.js 18 + React Router v6 |
-| **Backend** | Node.js 20 + Express.js 4 |
+| **Frontend** | React.js 19 + React Router v7 |
+| **Backend** | Node.js 20 + Express.js 5 |
 | **Base de données** | MySQL 8 (via XAMPP en dev) |
 | **Authentification** | JWT + bcryptjs |
-| **Intelligence Artificielle** | OpenAI API (GPT-4o mini) |
+| **Intelligence Artificielle** | Google Gemini 2.0 Flash |
 | **Conteneurisation** | Docker + docker-compose |
 | **CI/CD** | GitHub Actions |
 | **Sécurité** | CodeQL + Trivy + OWASP ZAP + Gitleaks |
@@ -186,7 +186,7 @@ audit_logs  (immuable — toutes les actions tracées)
 
 ---
 
-## 🤖 Fonctionnalités IA (OpenAI GPT-4o mini)
+## 🤖 Fonctionnalités IA (Google Gemini 2.0 Flash)
 
 | Fonctionnalité | Description |
 |---|---|
@@ -216,7 +216,7 @@ mysql -u root < database/schema.sql
 # 3. Configurer le backend
 cd backend
 cp .env.example .env
-# Éditer .env : DB_PASSWORD, JWT_SECRET, OPENAI_API_KEY
+# Éditer .env : DB_PASSWORD, JWT_SECRET, GEMINI_API_KEY
 npm install
 npm run dev      # Démarre sur http://localhost:5000
 
