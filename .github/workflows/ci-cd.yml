@@ -100,18 +100,20 @@ jobs:
 
       - name: Initialiser la base de données de test
         run: |
-          mysql -h 127.0.0.1 -u root -ptestpassword medipharma_test < ../database/schema.sql
+          mysql -h 127.0.0.1 -u root -ptestpassword < ../database/schema.sql
+          mysql -h 127.0.0.1 -u root -ptestpassword -e "GRANT ALL ON medipharma.* TO 'testuser'@'%'; FLUSH PRIVILEGES;"
 
       - name: Run tests avec couverture
-        run: npm test -- --coverage --watchAll=false
+        run: npm test -- --coverage --watchAll=false --forceExit
         env:
           NODE_ENV:    test
           DB_HOST:     127.0.0.1
           DB_PORT:     3306
           DB_USER:     testuser
           DB_PASSWORD: testpass
-          DB_NAME:     medipharma_test
+          DB_NAME:     medipharma
           JWT_SECRET:  test_jwt_secret_ci_pipeline_2026
+          GEMINI_API_KEY: ""
 
       - name: Upload couverture vers Codecov
         uses: codecov/codecov-action@v6
@@ -141,13 +143,14 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
 
       - name: Install dependencies
-        run: npm ci
+        run: npm install --legacy-peer-deps
 
       - name: Build React (production)
         run: npm run build
         env:
           REACT_APP_API_URL: http://localhost:5000/api
           CI: false
+          NODE_OPTIONS: --openssl-legacy-provider
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4

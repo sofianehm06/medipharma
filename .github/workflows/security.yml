@@ -175,7 +175,9 @@ jobs:
         run: cd backend && npm ci
 
       - name: Initialiser la DB de test
-        run: mysql -h 127.0.0.1 -u root -ptestpassword medipharma_test < database/schema.sql
+        run: |
+          mysql -h 127.0.0.1 -u root -ptestpassword < database/schema.sql
+          mysql -h 127.0.0.1 -u root -ptestpassword -e "GRANT ALL ON medipharma.* TO 'testuser'@'%'; FLUSH PRIVILEGES;"
 
       - name: Démarrer le backend en arrière-plan
         run: |
@@ -194,7 +196,7 @@ jobs:
           DB_PORT:     3306
           DB_USER:     testuser
           DB_PASSWORD: testpass
-          DB_NAME:     medipharma_test
+          DB_NAME:     medipharma
           JWT_SECRET:   test_jwt_secret_dast_scan_2026
           GEMINI_API_KEY: ""
 
