@@ -114,7 +114,7 @@ jobs:
           JWT_SECRET:  test_jwt_secret_ci_pipeline_2026
 
       - name: Upload couverture vers Codecov
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@v6
         if: always()
         with:
           directory: backend/coverage
