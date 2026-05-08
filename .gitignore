@@ -1,0 +1,31 @@
+# Dépendances
+node_modules/
+.npm
+
+# Variables d'environnement (NE JAMAIS COMMITTER)
+.env
+backend/.env
+frontend/.env.local
+frontend/.env.production
+
+# Build React
+frontend/build/
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# Docker volumes locaux
+mysql_data/
+
+# Coverage tests
+coverage/

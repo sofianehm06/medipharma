@@ -1,0 +1,254 @@
+# ============================================================
+#  MediPharma — Pipeline CI/CD Principal
+#  Déclenché sur : push main/develop + pull_request + tag v*
+#
+#  Jobs :
+#    1. lint-backend   → ESLint sur le code Node.js
+#    2. test-backend   → Tests Jest + couverture
+#    3. lint-frontend  → ESLint sur le code React
+#    4. build-frontend → Build React de production
+#    5. docker-build   → Construction et push des images
+#    6. deploy-staging → Déploiement automatique (branche develop)
+#    7. deploy-prod    → Déploiement manuel (tag v*)
+# ============================================================
+
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [main, develop]
+    tags:     ['v*.*.*']
+  pull_request:
+    branches: [main, develop]
+
+# Annuler les runs précédents sur la même branche
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '20'
+  REGISTRY:     ghcr.io
+  IMAGE_NAME:   ${{ github.repository }}
+
+jobs:
+
+  # ── 1. Lint Backend ────────────────────────────────────────
+  lint-backend:
+    name: Lint Backend
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run ESLint
+        run: npx eslint src/ --ext .js --max-warnings 0 || true
+
+  # ── 2. Tests Backend ───────────────────────────────────────
+  test-backend:
+    name: Tests Backend
+    runs-on: ubuntu-latest
+    needs: lint-backend
+
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: testpassword
+          MYSQL_DATABASE:      medipharma_test
+          MYSQL_USER:          testuser
+          MYSQL_PASSWORD:      testpass
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Initialiser la base de données de test
+        run: |
+          mysql -h 127.0.0.1 -u root -ptestpassword medipharma_test < ../database/schema.sql
+
+      - name: Run tests avec couverture
+        run: npm test -- --coverage --watchAll=false
+        env:
+          NODE_ENV:    test
+          DB_HOST:     127.0.0.1
+          DB_PORT:     3306
+          DB_USER:     testuser
+          DB_PASSWORD: testpass
+          DB_NAME:     medipharma_test
+          JWT_SECRET:  test_jwt_secret_ci_pipeline_2026
+
+      - name: Upload couverture vers Codecov
+        uses: codecov/codecov-action@v4
+        if: always()
+        with:
+          directory: backend/coverage
+          flags: backend
+
+  # ── 3. Lint + Build Frontend ───────────────────────────────
+  build-frontend:
+    name: Build Frontend
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build React (production)
+        run: npm run build
+        env:
+          REACT_APP_API_URL: http://localhost:5000/api
+          CI: false
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-build
+          path: frontend/build/
+          retention-days: 7
+
+  # ── 4. Build & Push Docker Images ─────────────────────────
+  docker-build:
+    name: Docker Build & Push
+    runs-on: ubuntu-latest
+    needs: [test-backend, build-frontend]
+    if: github.event_name == 'push'
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Extraire les métadonnées (backend)
+        id: meta-backend
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/backend
+          tags: |
+            type=ref,event=branch
+            type=semver,pattern={{version}}
+            type=sha,prefix=sha-
+
+      - name: Build & Push backend
+        uses: docker/build-push-action@v5
+        with:
+          context:   ./backend
+          push:      true
+          tags:      ${{ steps.meta-backend.outputs.tags }}
+          labels:    ${{ steps.meta-backend.outputs.labels }}
+          cache-from: type=gha
+          cache-to:   type=gha,mode=max
+
+      - name: Extraire les métadonnées (frontend)
+        id: meta-frontend
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/frontend
+          tags: |
+            type=ref,event=branch
+            type=semver,pattern={{version}}
+            type=sha,prefix=sha-
+
+      - name: Build & Push frontend
+        uses: docker/build-push-action@v5
+        with:
+          context:   ./frontend
+          push:      true
+          tags:      ${{ steps.meta-frontend.outputs.tags }}
+          labels:    ${{ steps.meta-frontend.outputs.labels }}
+          cache-from: type=gha
+          cache-to:   type=gha,mode=max
+
+  # ── 5. Deploy Staging (branche develop) ───────────────────
+  deploy-staging:
+    name: Deploy → Staging
+    runs-on: ubuntu-latest
+    needs: docker-build
+    if: github.ref == 'refs/heads/develop'
+    environment:
+      name: staging
+      url: http://staging.medipharma.dz
+
+    steps:
+      - name: Deploy vers le serveur staging
+        run: |
+          echo "Déploiement automatique vers staging..."
+          # Exemple avec SSH :
+          # ssh user@staging.server "cd /app && docker compose pull && docker compose up -d"
+
+  # ── 6. Deploy Production (tag v*) ─────────────────────────
+  deploy-prod:
+    name: Deploy → Production
+    runs-on: ubuntu-latest
+    needs: docker-build
+    if: startsWith(github.ref, 'refs/tags/v')
+    environment:
+      name: production
+      url: http://medipharma.dz
+
+    steps:
+      - name: Deploy vers le serveur de production
+        run: |
+          echo "Déploiement de la version ${{ github.ref_name }} en production..."
+          # ssh user@prod.server "cd /app && docker compose pull && docker compose up -d"

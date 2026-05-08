@@ -1,0 +1,107 @@
+version: '3.9'
+
+# ── Réseau interne isolé ──────────────────────────────────────
+networks:
+  medipharma-net:
+    driver: bridge
+
+# ── Volumes persistants ───────────────────────────────────────
+volumes:
+  mysql_data:
+    driver: local
+
+# ── Services ─────────────────────────────────────────────────
+services:
+
+  # ── MySQL 8 ──────────────────────────────────────────────
+  mysql:
+    image: mysql:8.0
+    container_name: medipharma-mysql
+    restart: unless-stopped
+    networks:
+      - medipharma-net
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rootpassword_change_me}
+      MYSQL_DATABASE:      medipharma
+      MYSQL_USER:          pharmuser
+      MYSQL_PASSWORD:      ${MYSQL_PASSWORD:-pharmpass_change_me}
+    ports:
+      - "3307:3306"          # 3307 pour ne pas entrer en conflit avec XAMPP local
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./database/schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-rootpassword_change_me}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    # Sécurité : pas d'accès en écriture aux volumes hors data
+    security_opt:
+      - no-new-privileges:true
+
+  # ── Backend Express.js ────────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: production
+    container_name: medipharma-backend
+    restart: unless-stopped
+    networks:
+      - medipharma-net
+    ports:
+      - "5000:5000"
+    environment:
+      NODE_ENV:         production
+      PORT:             5000
+      DB_HOST:          mysql          # nom du service Docker, pas localhost
+      DB_PORT:          3306
+      DB_USER:          pharmuser
+      DB_PASSWORD:      ${MYSQL_PASSWORD:-pharmpass_change_me}
+      DB_NAME:          medipharma
+      JWT_SECRET:       ${JWT_SECRET:?JWT_SECRET est requis}
+      JWT_EXPIRES_IN:   24h
+      OPENAI_API_KEY:   ${OPENAI_API_KEY:-}
+      FRONTEND_URL:     http://localhost:3000
+    depends_on:
+      mysql:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:5000/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    security_opt:
+      - no-new-privileges:true
+    # Lecture seule du système de fichiers sauf /tmp
+    read_only: true
+    tmpfs:
+      - /tmp
+
+  # ── Frontend React (Nginx) ────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      target: production
+      args:
+        REACT_APP_API_URL: http://localhost:5000/api
+    container_name: medipharma-frontend
+    restart: unless-stopped
+    networks:
+      - medipharma-net
+    ports:
+      - "3000:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    security_opt:
+      - no-new-privileges:true
