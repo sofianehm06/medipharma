@@ -199,16 +199,15 @@ jobs:
           GEMINI_API_KEY: ""
 
       - name: OWASP ZAP — Baseline Scan (API)
-        uses: zaproxy/action-baseline@v0.15.0
+        uses: zaproxy/action-baseline@v0.14.0
         with:
           target: http://localhost:5000/api
           rules_file_name: .github/zap-rules.tsv
-          cmd_options: '-a -j'   # -a: ajax spider, -j: JSON report
           fail_action: warn      # warn = ne bloque pas le pipeline sur les faibles risques
           artifact_name: zap-report
 
       - name: Upload rapport ZAP
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v4
         if: always()
         with:
           name: zap-security-report
