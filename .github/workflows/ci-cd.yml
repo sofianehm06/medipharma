@@ -64,18 +64,9 @@ jobs:
         run: npm ci
 
       - name: Initialiser la base de données de test
-        run: mysql -h 127.0.0.1 -u root -ptestpassword < ../database/schema.sql
-
-      - name: Vérifier la connexion DB
         run: |
-          node -e "
-          const mysql = require('mysql2/promise');
-          mysql.createConnection({host:'127.0.0.1',port:3306,user:'root',password:'testpassword',database:'medipharma'})
-            .then(c => { console.log('DB OK — medipharma accessible'); c.end(); })
-            .catch(e => { console.error('DB ERREUR:', e.message); process.exit(1); });
-          "
-        env:
-          DB_HOST: 127.0.0.1
+          mysql -h 127.0.0.1 -u root -ptestpassword < ../database/schema.sql
+          mysql -h 127.0.0.1 -u root -ptestpassword -e "GRANT ALL ON medipharma.* TO 'testuser'@'%'; FLUSH PRIVILEGES;"
 
       - name: Lancer les tests Jest
         run: npm test -- --coverage --watchAll=false --forceExit
@@ -83,8 +74,8 @@ jobs:
           NODE_ENV:       test
           DB_HOST:        127.0.0.1
           DB_PORT:        3306
-          DB_USER:        root
-          DB_PASSWORD:    testpassword
+          DB_USER:        testuser
+          DB_PASSWORD:    testpass
           DB_NAME:        medipharma
           JWT_SECRET:     test_jwt_secret_ci_pipeline_2026
           GEMINI_API_KEY: ""
