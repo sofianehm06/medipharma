@@ -66,10 +66,13 @@ jobs:
       - name: Initialiser la base de données de test
         run: |
           mysql -h 127.0.0.1 -u root -ptestpassword < ../database/schema.sql
-          mysql -h 127.0.0.1 -u root -ptestpassword -e "GRANT ALL ON medipharma.* TO 'testuser'@'%'; FLUSH PRIVILEGES;"
+          mysql -h 127.0.0.1 -u root -ptestpassword -e "GRANT ALL PRIVILEGES ON medipharma.* TO 'testuser'@'%'; FLUSH PRIVILEGES;"
+
+      - name: Vérifier DB testuser
+        run: mysql -h 127.0.0.1 -u testuser -ptestpass medipharma -e "SELECT COUNT(*) AS nb_users FROM users; SELECT email FROM users LIMIT 3;"
 
       - name: Lancer les tests Jest
-        run: npm test -- --coverage --watchAll=false --forceExit
+        run: npm test -- --coverage --watchAll=false --forceExit --testPathPattern=src/tests
         env:
           NODE_ENV:       test
           DB_HOST:        127.0.0.1
