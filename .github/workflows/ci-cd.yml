@@ -66,8 +66,19 @@ jobs:
       - name: Initialiser la base de données de test
         run: mysql -h 127.0.0.1 -u root -ptestpassword < ../database/schema.sql
 
+      - name: Vérifier la connexion DB
+        run: |
+          node -e "
+          const mysql = require('mysql2/promise');
+          mysql.createConnection({host:'127.0.0.1',port:3306,user:'root',password:'testpassword',database:'medipharma'})
+            .then(c => { console.log('DB OK — medipharma accessible'); c.end(); })
+            .catch(e => { console.error('DB ERREUR:', e.message); process.exit(1); });
+          "
+        env:
+          DB_HOST: 127.0.0.1
+
       - name: Lancer les tests Jest
-        run: npm test -- --watchAll=false --forceExit
+        run: npm test -- --watchAll=false --forceExit --runInBand
         env:
           NODE_ENV:       test
           DB_HOST:        127.0.0.1
