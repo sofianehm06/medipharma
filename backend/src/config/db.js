@@ -15,12 +15,13 @@ const pool = mysql.createPool({
 // Vérification de la connexion au démarrage
 pool.getConnection()
   .then(conn => {
-    console.log('Connexion MySQL établie');
+    if (process.env.NODE_ENV !== 'test') console.log('Connexion MySQL établie');
     conn.release();
   })
   .catch(err => {
     console.error('Erreur connexion MySQL:', err.message);
-    process.exit(1);
+    // En mode test on log seulement — sinon process.exit(1) tue Jest
+    if (process.env.NODE_ENV !== 'test') process.exit(1);
   });
 
 module.exports = pool;

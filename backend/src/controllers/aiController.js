@@ -4,12 +4,53 @@ const db = require('../config/db');
 const getModel = () => {
   if (!process.env.GEMINI_API_KEY) throw new Error('GEMINI_API_KEY non configurée');
   const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-  return genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+  // gemini-1.5-flash : modèle stable, free tier généreux (15 RPM / 1500 RPD)
+  return genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
 };
+
+// ── Cache serveur (évite de re-appeler Gemini pour les mêmes données) ──
+const _cache = new Map();
+
+function getCached(key) {
+  const entry = _cache.get(key);
+  if (!entry) return null;
+  if (Date.now() - entry.ts > entry.ttl) { _cache.delete(key); return null; }
+  return entry.data;
+}
+
+function setCache(key, data, ttlMs) {
+  _cache.set(key, { data, ts: Date.now(), ttl: ttlMs });
+}
+
+// ── Retry Gemini avec backoff exponentiel (max 2 tentatives) ──
+async function generateWithRetry(prompt, maxRetries = 2) {
+  const model = getModel();
+  let lastErr;
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      const result = await model.generateContent(prompt);
+      return result.response.text();
+    } catch (err) {
+      lastErr = err;
+      console.error(`[Gemini] Tentative ${attempt + 1}/${maxRetries + 1} échouée:`, err.message || err);
+      const is429 = err.status === 429 || (err.message && err.message.includes('429'));
+      if (is429 && attempt < maxRetries) {
+        await new Promise(r => setTimeout(r, (attempt + 1) * 5000));
+        continue;
+      }
+      throw err;
+    }
+  }
+  throw lastErr;
+}
 
 // Analyse IA du stock et recommandations
 const analyseStock = async (req, res) => {
   try {
+    // Cache 5 minutes — évite de re-appeler Gemini à chaque clic
+    const cached = getCached('analyseStock');
+    if (cached) return res.json({ ...cached, from_cache: true });
+
     const [stockData] = await db.execute(`
       SELECT m.nom, m.dosage, m.forme, m.seuil_minimum,
         COALESCE(SUM(l.quantite_actuelle), 0) AS stock_total,
@@ -44,24 +85,26 @@ Analyse ces données et fournis :
 
 Réponds en français, de manière concise et professionnelle.`;
 
-    const model = getModel();
-    const result = await model.generateContent(prompt);
-    const text = result.response.text();
+    const text = await generateWithRetry(prompt);
 
-    res.json({
+    const payload = {
       analyse: text,
       stock_analysé: stockData.length,
       alertes_actives: alertes[0].nb,
       generated_at: new Date().toISOString()
-    });
+    };
+
+    setCache('analyseStock', payload, 5 * 60 * 1000); // cache 5 min
+    res.json(payload);
   } catch (err) {
-    if (err.message.includes('API_KEY') || err.message.includes('non configurée')) {
+    console.error('[analyseStock] Erreur:', err.message || err);
+    if (err.message?.includes('API_KEY') || err.message?.includes('non configurée') || err.message?.includes('API key not valid')) {
       return res.status(503).json({ error: 'Clé Gemini invalide ou non configurée' });
     }
-    if (err.status === 429) {
+    if (err.status === 429 || err.message?.includes('429') || err.message?.includes('quota')) {
       return res.status(429).json({ error: 'Quota IA dépassé, réessayez dans 30 secondes.' });
     }
-    res.status(500).json({ error: "Erreur lors de l'analyse IA" });
+    res.status(500).json({ error: "Erreur lors de l'analyse IA", details: err.message });
   }
 };
 
@@ -100,22 +143,20 @@ const chat = async (req, res) => {
   }
 
   try {
-    const model = getModel();
     const systemPrompt = SYSTEM_PROMPTS[role] || SYSTEM_PROMPTS.personnel_medical;
     const fullPrompt = `${systemPrompt}\n\nQuestion : ${message}`;
 
-    const result = await model.generateContent(fullPrompt);
-    const text = result.response.text();
-
+    const text = await generateWithRetry(fullPrompt);
     res.json({ response: text, role });
   } catch (err) {
-    if (err.message.includes('API_KEY') || err.message.includes('non configurée')) {
+    console.error('[chat] Erreur:', err.message || err);
+    if (err.message?.includes('API_KEY') || err.message?.includes('non configurée') || err.message?.includes('API key not valid')) {
       return res.status(503).json({ error: 'Service IA non disponible' });
     }
-    if (err.status === 429) {
+    if (err.status === 429 || err.message?.includes('429') || err.message?.includes('quota')) {
       return res.status(429).json({ error: 'Quota IA dépassé, réessayez dans 30 secondes.' });
     }
-    res.status(500).json({ error: "Erreur lors de la communication avec l'IA" });
+    res.status(500).json({ error: "Erreur lors de la communication avec l'IA", details: err.message });
   }
 };
 
@@ -145,12 +186,16 @@ const suggestionCommande = async (req, res) => {
       return res.json({ message: 'Aucun médicament ne nécessite de commande urgente.', suggestions: [] });
     }
 
+    // Cache 10 minutes pour les suggestions de commande
+    const cacheKey = 'suggestionCommande';
+    const cached = getCached(cacheKey);
+    if (cached) return res.json({ ...cached, from_cache: true });
+
     const liste = data.map(d =>
       `${d.nom} ${d.dosage}: stock=${d.stock_actuel}, seuil=${d.seuil_minimum}, consommé/30j=${d.consommation_30j}`
     ).join('\n');
 
-    const model = getModel();
-    const result = await model.generateContent(
+    const text = await generateWithRetry(
       `En tant que pharmacien hospitalier, génère une liste de commande prioritaire basée sur ces données :
 ${liste}
 
@@ -158,11 +203,13 @@ Pour chaque médicament, suggère la quantité à commander (basée sur 2 mois d
 Format de réponse : tableau structuré avec colonnes Médicament | Stock actuel | Quantité suggérée | Priorité.`
     );
 
-    res.json({
-      suggestion: result.response.text(),
-      medicaments_concernes: data.length
-    });
+    const payload = { suggestion: text, medicaments_concernes: data.length };
+    setCache(cacheKey, payload, 10 * 60 * 1000); // cache 10 min
+    res.json(payload);
   } catch (err) {
+    if (err.status === 429 || err.message?.includes('429')) {
+      return res.status(429).json({ error: 'Quota IA dépassé, réessayez dans 30 secondes.' });
+    }
     res.status(500).json({ error: 'Erreur lors de la génération des suggestions' });
   }
 };

@@ -28,13 +28,16 @@ app.use(cors({
 app.use(express.json({ limit: '10kb' }));
 app.use(express.urlencoded({ extended: true }));
 
-// Logs
-app.use(morgan('combined'));
+// Logs (désactivés en mode test pour ne pas polluer la sortie Jest)
+if (process.env.NODE_ENV !== 'test') {
+  app.use(morgan('combined'));
+}
 
-// Rate limiting global
+// Rate limiting global (désactivé en mode test)
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 1000,
+  skip: () => process.env.NODE_ENV === 'test',
   message: { error: 'Trop de requêtes, réessayez dans 15 minutes.' }
 });
 app.use('/api/', limiter);

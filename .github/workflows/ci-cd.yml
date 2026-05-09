@@ -63,6 +63,17 @@ jobs:
       - name: Installer les dépendances
         run: npm ci
 
+      - name: Attendre que MySQL soit pret
+        run: |
+          for i in {1..30}; do
+            if mysqladmin ping -h 127.0.0.1 -u root -ptestpassword --silent; then
+              echo "MySQL est pret !"
+              break
+            fi
+            echo "Attente MySQL... ($i/30)"
+            sleep 2
+          done
+
       - name: Initialiser la base de données de test
         run: |
           mysql -h 127.0.0.1 -u root -ptestpassword < ../database/schema.sql
@@ -72,7 +83,7 @@ jobs:
         run: mysql -h 127.0.0.1 -u testuser -ptestpass medipharma -e "SELECT COUNT(*) AS nb_users FROM users; SELECT email FROM users LIMIT 3;"
 
       - name: Lancer tous les tests avec coverage
-        run: npm test -- --coverage --watchAll=false --forceExit --runInBand
+        run: npm test -- --coverage --watchAll=false --forceExit --runInBand --verbose
         env: &test_env
           NODE_ENV: test
           DB_HOST: 127.0.0.1
