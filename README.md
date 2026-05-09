@@ -249,6 +249,7 @@ cp .env.example .env
 |---|---|---|
 | admin@medipharma.dz | Administrateur | password |
 | pharmacien@medipharma.dz | Pharmacien | password |
+| pharmacien2@medipharma.dz | Pharmacien | password |
 | stock@medipharma.dz | Resp. de stock | password |
 | medical@medipharma.dz | Personnel médical | password |
 
