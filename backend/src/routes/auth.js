@@ -3,10 +3,10 @@ const { login, getMe, changePassword } = require('../controllers/authController'
 const { verifyToken } = require('../middleware/auth');
 const rateLimit = require('express-rate-limit');
 
-// Rate limit strict sur le login : 10 tentatives / 15 min
+// Rate limit strict sur le login : 10 tentatives / 15 min (1000 en test)
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 10,
+  max: process.env.NODE_ENV === 'test' ? 1000 : 10,
   message: { error: 'Trop de tentatives de connexion. Réessayez dans 15 minutes.' }
 });
 
