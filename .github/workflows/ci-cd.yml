@@ -78,7 +78,14 @@ jobs:
           DB_HOST: 127.0.0.1
 
       - name: Lancer les tests Jest
-        run: npm test -- --watchAll=false --forceExit --runInBand --verbose 2>&1 | tee /tmp/jest-output.txt; exit ${PIPESTATUS[0]}
+        run: |
+          npm test -- --watchAll=false --forceExit --runInBand --verbose 2>&1 | tee /tmp/jest-output.txt
+          EXIT_CODE=${PIPESTATUS[0]}
+          echo "## Résultats Jest" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          cat /tmp/jest-output.txt >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          exit $EXIT_CODE
         env:
           NODE_ENV:       test
           DB_HOST:        127.0.0.1
@@ -88,14 +95,6 @@ jobs:
           DB_NAME:        medipharma
           JWT_SECRET:     test_jwt_secret_ci_2026
           GEMINI_API_KEY: ""
-
-      - name: Upload logs Jest (debug)
-        uses: actions/upload-artifact@v4
-        if: failure()
-        with:
-          name:           jest-debug-logs
-          path:           /tmp/jest-output.txt
-          retention-days: 3
 
   # ──────────────────────────────────────────────────────────
   # 2. Build Frontend — React
