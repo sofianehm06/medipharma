@@ -78,7 +78,7 @@ jobs:
           DB_HOST: 127.0.0.1
 
       - name: Lancer les tests Jest
-        run: npm test -- --watchAll=false --forceExit --runInBand
+        run: npm test -- --coverage --watchAll=false --forceExit
         env:
           NODE_ENV:       test
           DB_HOST:        127.0.0.1
@@ -86,7 +86,7 @@ jobs:
           DB_USER:        root
           DB_PASSWORD:    testpassword
           DB_NAME:        medipharma
-          JWT_SECRET:     test_jwt_secret_ci_2026
+          JWT_SECRET:     test_jwt_secret_ci_pipeline_2026
           GEMINI_API_KEY: ""
 
   # ──────────────────────────────────────────────────────────
