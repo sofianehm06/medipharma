@@ -99,7 +99,11 @@ jobs:
         continue-on-error: true
         env: *test_env
 
-      - name: Lancer tous les tests (résultat final)
+      - name: Lancer tous les tests sans coverage (sanity check)
+        run: npx jest src/tests --watchAll=false --forceExit --no-coverage
+        env: *test_env
+
+      - name: Lancer tous les tests avec coverage
         run: npm test -- --coverage --watchAll=false --forceExit --testPathPattern=src/tests
         env: *test_env
 
