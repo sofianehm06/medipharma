@@ -26,12 +26,5 @@
     "jest": "^29.7.0",
     "nodemon": "^3.0.2",
     "supertest": "^7.2.2"
-  },
-  "jest": {
-    "testEnvironment": "node",
-    "roots": ["<rootDir>/src/tests"],
-    "testMatch": ["**/*.test.js"],
-    "coverageDirectory": "coverage",
-    "testTimeout": 30000
   }
 }
