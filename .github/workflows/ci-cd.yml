@@ -78,14 +78,7 @@ jobs:
           DB_HOST: 127.0.0.1
 
       - name: Lancer les tests Jest
-        run: |
-          npm test -- --watchAll=false --forceExit --runInBand --verbose 2>&1 | tee /tmp/jest-output.txt
-          EXIT_CODE=${PIPESTATUS[0]}
-          echo "## Résultats Jest" >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-          cat /tmp/jest-output.txt >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-          exit $EXIT_CODE
+        run: npm test -- --watchAll=false --forceExit --runInBand
         env:
           NODE_ENV:       test
           DB_HOST:        127.0.0.1
