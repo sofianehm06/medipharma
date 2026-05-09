@@ -441,7 +441,7 @@ export default function AIPage() {
             background: '#f0fdf4', border: '1px solid #86efac',
             borderRadius: 8, padding: '6px 14px', fontSize: 13, color: '#15803d'
           }}>
-            <span>🟢</span> Gemini 2.0 Flash
+            <span>🟢</span> Gemini 2.5 Flash Lite
           </div>
         </div>
       </div>

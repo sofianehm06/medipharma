@@ -4,8 +4,8 @@ const db = require('../config/db');
 const getModel = () => {
   if (!process.env.GEMINI_API_KEY) throw new Error('GEMINI_API_KEY non configurée');
   const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-  // gemini-1.5-flash : modèle stable, free tier généreux (15 RPM / 1500 RPD)
-  return genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+  // gemini-2.5-flash-lite : modèle léger avec quota free tier disponible
+  return genAI.getGenerativeModel({ model: 'gemini-2.5-flash-lite' });
 };
 
 // ── Cache serveur (évite de re-appeler Gemini pour les mêmes données) ──
