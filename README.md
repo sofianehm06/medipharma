@@ -30,7 +30,7 @@ MediPharma est une application web sécurisée permettant la **gestion et la tra
 | **Backend** | Node.js 20 + Express.js 5 |
 | **Base de données** | MySQL 8 (via XAMPP en dev) |
 | **Authentification** | JWT + bcryptjs |
-| **Intelligence Artificielle** | Google Gemini 2.0 Flash |
+| **Intelligence Artificielle** | Google Gemini 2.5 Flash Lite |
 | **Conteneurisation** | Docker + docker-compose |
 | **CI/CD** | GitHub Actions |
 | **Sécurité** | CodeQL + Trivy + OWASP ZAP + Gitleaks |
@@ -186,7 +186,7 @@ audit_logs  (immuable — toutes les actions tracées)
 
 ---
 
-## 🤖 Fonctionnalités IA (Google Gemini 2.0 Flash)
+## 🤖 Fonctionnalités IA (Google Gemini 2.5 Flash Lite)
 
 | Fonctionnalité | Description |
 |---|---|
