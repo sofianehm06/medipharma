@@ -71,17 +71,37 @@ jobs:
       - name: Vérifier DB testuser
         run: mysql -h 127.0.0.1 -u testuser -ptestpass medipharma -e "SELECT COUNT(*) AS nb_users FROM users; SELECT email FROM users LIMIT 3;"
 
-      - name: Lancer les tests Jest
-        run: npm test -- --coverage --watchAll=false --forceExit --testPathPattern=src/tests
-        env:
-          NODE_ENV:       test
-          DB_HOST:        127.0.0.1
-          DB_PORT:        3306
-          DB_USER:        testuser
-          DB_PASSWORD:    testpass
-          DB_NAME:        medipharma
-          JWT_SECRET:     test_jwt_secret_ci_pipeline_2026
+      - name: Tests auth.test.js
+        run: npx jest src/tests/auth.test.js --watchAll=false --forceExit --no-coverage
+        continue-on-error: true
+        env: &test_env
+          NODE_ENV: test
+          DB_HOST: 127.0.0.1
+          DB_PORT: 3306
+          DB_USER: testuser
+          DB_PASSWORD: testpass
+          DB_NAME: medipharma
+          JWT_SECRET: test_jwt_secret_ci_pipeline_2026
           GEMINI_API_KEY: ""
+
+      - name: Tests medications.test.js
+        run: npx jest src/tests/medications.test.js --watchAll=false --forceExit --no-coverage
+        continue-on-error: true
+        env: *test_env
+
+      - name: Tests stock.test.js
+        run: npx jest src/tests/stock.test.js --watchAll=false --forceExit --no-coverage
+        continue-on-error: true
+        env: *test_env
+
+      - name: Tests rbac.test.js
+        run: npx jest src/tests/rbac.test.js --watchAll=false --forceExit --no-coverage
+        continue-on-error: true
+        env: *test_env
+
+      - name: Lancer tous les tests (résultat final)
+        run: npm test -- --coverage --watchAll=false --forceExit --testPathPattern=src/tests
+        env: *test_env
 
   # ──────────────────────────────────────────────────────────
   # 2. Build Frontend — React
