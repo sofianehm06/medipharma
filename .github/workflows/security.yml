@@ -174,10 +174,11 @@ jobs:
         uses: zaproxy/action-baseline@v0.14.0
         continue-on-error: true   # ZAP peut trouver des alertes sans bloquer le pipeline
         with:
-          target:            http://localhost:5000/api
-          rules_file_name:   .github/zap-rules.tsv
-          fail_action:       warn
-          artifact_name:     zap-report
+          target:               http://localhost:5000/api
+          rules_file_name:      .github/zap-rules.tsv
+          fail_action:          false   # n'échoue pas le job sur alertes WARN
+          allow_issue_writing:  false   # désactive la création d'issue GitHub (pas de permission issues:write)
+          artifact_name:        zap-report
 
       - name: Upload rapport ZAP
         uses: actions/upload-artifact@v4
