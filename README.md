@@ -1,21 +1,5 @@
 # 💊 MediPharma — Application Web de Gestion des Médicaments Hospitaliers
 
-> Projet de fin d'études — Université Abderrahman Mira de Béjaïa | 2025–2026  
-> Département Informatique — Faculté des Sciences Exactes
-
-## 👥 Équipe
-
-| Membre | Rôle |
-|---|---|
-| HAMMAMI Sofiane | Développeur principal / Chef de projet |
-| HATTAB Aziz | Architecture & Backend |
-| OUMAMMAR Aymene | Frontend & UI/UX |
-| KHEFFACHE Reyad | Base de données & SQL |
-| KORICHE Syphax | DevOps & CI/CD |
-| Dr. FARAH Zoubeyr | Encadrant |
-
----
-
 ## 📋 Description
 
 MediPharma est une application web sécurisée permettant la **gestion et la traçabilité des médicaments** au sein d'un établissement hospitalier. Elle couvre l'ensemble du cycle de vie des médicaments : de la réception au service, en passant par la gestion des stocks et la détection automatique des anomalies.
