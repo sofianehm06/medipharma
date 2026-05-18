@@ -296,9 +296,3 @@ Push/PR
         ├── dast-zap        (OWASP ZAP — tests dynamiques)
         └── security-report (rapport consolidé)
 ```
-
----
-
-## 📄 Licence
-
-Projet académique — Université Abderrahman Mira de Béjaïa © 2026
